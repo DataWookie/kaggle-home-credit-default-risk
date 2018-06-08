@@ -114,7 +114,7 @@ rm(train_numeric)
 
 # DOWNSAMPLE ----------------------------------------------------------------------------------------------------------
 
-train <- rbind(
-  train %>% filter(target == "yes") %>% sample_n(15000),
-  train %>% filter(target == "no") %>% sample_n(15000)
-)
+# train <- rbind(
+#   train %>% filter(target == "yes") %>% sample_n(15000),
+#   train %>% filter(target == "no") %>% sample_n(15000)
+# )
