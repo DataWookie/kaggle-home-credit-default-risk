@@ -1,8 +1,9 @@
 library(dplyr)
 library(stringr)
+library(caret)
 
 fix_levels <- function(categorical) {
-  categorical %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .)
+  categorical %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% factor()
 }
 
 load_application <- function(filename) {
@@ -34,15 +35,10 @@ data_test <- data_test %>% mutate(
 
 # ENGINEER ------------------------------------------------------------------------------------------------------------
 
-data_train <- data_train %>% mutate(
-  own_car = !is.na(own_car_age)
-)
-#
-# Use values from *training* data for imputation?
-#
-data_test <- data_test %>% mutate(
-  own_car = !is.na(own_car_age)
-)
+# data_train <- data_train %>% mutate(
+# )
+# data_test <- data_test %>% mutate(
+# )
 
 # REBALANCE -----------------------------------------------------------------------------------------------------------
 
