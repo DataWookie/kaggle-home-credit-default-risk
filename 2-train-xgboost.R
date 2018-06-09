@@ -1,4 +1,4 @@
-fit <- train(as.factor(target) ~ ., data = train, method = "xgbTree",
+fit <- train(target ~ ., data = train, method = "xgbTree",
                    metric = "ROC",
                    trControl = trainControl(
                      method = "cv",

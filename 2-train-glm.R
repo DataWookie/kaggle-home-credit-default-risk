@@ -1,4 +1,4 @@
-fit <- train(as.factor(target) ~ ., data = train, method = "glm",
+fit <- train(target ~ ., data = train, method = "glm",
                  metric = "ROC",
                  trControl = trainControl(
                    method = "cv",

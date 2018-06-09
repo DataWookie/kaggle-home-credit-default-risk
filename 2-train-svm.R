@@ -1,4 +1,4 @@
-fit <- train(as.factor(target) ~ ., data = train, method = "svmRadial",
+fit <- train(target ~ ., data = train, method = "svmRadial",
                    metric = "ROC",
                    trControl = trainControl(
                      method = "cv",
