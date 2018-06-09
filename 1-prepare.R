@@ -1,69 +1,61 @@
 COLUMNS = c(
   "amt_annuity",
   "amt_goods_price",
-  # "own_car_age",
-  # "cnt_fam_members",
-  # "ext_source_1",
-  # "ext_source_2",
-  # "ext_source_3",
-  # "apartments_avg",
-  # "basementarea_avg",
-  # "years_beginexpluatation_avg",
-  # "years_build_avg",
-  # "commonarea_avg",
-  # "elevators_avg",
-  # "entrances_avg",
-  # "floorsmax_avg",
-  # "floorsmin_avg",
-  # "landarea_avg",
-  # "livingapartments_avg",
-  # "livingarea_avg",
-  # "nonlivingapartments_avg",
-  # "nonlivingarea_avg",
-  # "apartments_mode",
-  # "basementarea_mode",
-  # "years_beginexpluatation_mode",
-  # "years_build_mode",
-  # "commonarea_mode",
-  # "elevators_mode",
-  # "entrances_mode",
-  # "floorsmax_mode",
-  # "floorsmin_mode",
-  # "landarea_mode",
-  # "livingapartments_mode",
-  # "livingarea_mode",
-  # "nonlivingapartments_mode",
-  # "nonlivingarea_mode",
-  # "apartments_medi",
-  # "basementarea_medi",
-  # "years_beginexpluatation_medi",
-  # "years_build_medi",
-  # "commonarea_medi",
-  # "elevators_medi",
-  # "entrances_medi",
-  # "floorsmax_medi",
-  # "floorsmin_medi",
-  # "landarea_medi",
-  # "livingapartments_medi",
-  # "livingarea_medi",
-  # "nonlivingapartments_medi",
-  # "nonlivingarea_medi",
-  # "totalarea_mode",
-  # "obs_30_cnt_social_circle",
-  # "def_30_cnt_social_circle",
-  # "obs_60_cnt_social_circle",
-  # "def_60_cnt_social_circle",
-  # "days_last_phone_change",
-  # "amt_req_credit_bureau_hour",
-  # "amt_req_credit_bureau_day",
-  # "amt_req_credit_bureau_week",
-  # "amt_req_credit_bureau_mon",
-  # "amt_req_credit_bureau_qrt",
-  # "amt_req_credit_bureau_year",
+  "own_car_age",
+  "cnt_fam_members",
+  "ext_source_1",
+  "ext_source_2",
+  "ext_source_3",
+  "commonarea_medi",
+  "commonarea_mode",
+  "elevators_medi",
+  "elevators_mode",
+  "entrances_mode",
+  "entrances_medi",
+  "floorsmax_mode",
+  "floorsmax_medi",
+  "floorsmin_mode",
+  "floorsmin_medi",
+  "landarea_mode",
+  "landarea_medi",
+  "livingarea_mode",
+  "livingarea_medi",
+  "nonlivingarea_mode",
+  "nonlivingarea_medi",
+  "livingapartments_mode",
+  "livingapartments_medi",
+  "nonlivingapartments_mode",
+  "nonlivingapartments_medi",
+  #
+  "obs_30_cnt_social_circle",
+  "def_30_cnt_social_circle",
+  "obs_60_cnt_social_circle",
+  "def_60_cnt_social_circle",
+  "amt_req_credit_bureau_hour",
+  "amt_req_credit_bureau_day",
+  "amt_req_credit_bureau_week",
+  "amt_req_credit_bureau_mon",
+  "amt_req_credit_bureau_qrt",
+  "amt_req_credit_bureau_year",
+  
+  "apartments_mode",
+  "apartments_medi",
+  "basementarea_mode",
+  "basementarea_medi",
+  "totalarea_mode",
+  "years_beginexpluatation_mode",
+  "years_beginexpluatation_medi",
+  "years_build_mode",
+  "years_build_medi",
+  "days_last_phone_change",
   #
   # Engineered features.
   #
-  # INSERT HERE
+  "flag_not_employed",
+  "days_employed_percent",
+  "income_credit_percent",
+  "income_per_person",
+  "annuity_income_percent",
   #
   # Original features.
   #
@@ -94,6 +86,20 @@ COLUMNS = c(
   # "flag_emp_phone",
   # "amt_credit",
   # "region_rating_client_w_city",
+  # "elevators_avg",
+  # "commonarea_avg",
+  # "entrances_avg",
+  # "floorsmax_avg",
+  # "floorsmin_avg",
+  # "landarea_avg",
+  # "livingarea_avg",
+  # "nonlivingarea_avg",
+  # "livingapartments_avg",
+  # "nonlivingapartments_avg",
+  # "basementarea_avg",
+  # "apartments_avg",
+  # "years_beginexpluatation_avg",
+  # "years_build_avg",
 )
 
 # SELECT FEATURES -----------------------------------------------------------------------------------------------------
@@ -103,18 +109,21 @@ test <- data_test[, COLUMNS]
 
 # IDENTIFY COLUMNS TO REMOVE ------------------------------------------------------------------------------------------
 
-nearZeroVar(train)
+# nearZeroVar(train)
 #
 train_numeric = train[, sapply(train, class) != "factor"]
 #
-findCorrelation(cor(train_numeric), cutoff = 0.95)
-findLinearCombos(train_numeric)
+index_correlated = findCorrelation(cor(train_numeric), cutoff = 0.975)
+index_linear = findLinearCombos(train_numeric)
+#
+names(train_numeric)[index_correlated]
+index_linear
 #
 rm(train_numeric)
 
 # DOWNSAMPLE ----------------------------------------------------------------------------------------------------------
 
-# train <- rbind(
-#   train %>% filter(target == "yes") %>% sample_n(15000),
-#   train %>% filter(target == "no") %>% sample_n(15000)
-# )
+train <- rbind(
+  train %>% filter(target == "yes") %>% sample_n(15000),
+  train %>% filter(target == "no") %>% sample_n(15000)
+)
