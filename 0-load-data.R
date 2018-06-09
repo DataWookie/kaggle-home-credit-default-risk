@@ -9,13 +9,14 @@
 
 library(dplyr)
 library(stringr)
+library(forcats)
 library(caret)
 
 # TODO: CONVERT NA TO CATEGORY FOR CATEGORICAL VARIABLES.
 #
 #
 fix_levels <- function(categorical) {
-  categorical %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% factor()
+  categorical %>% str_replace_all("/", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
 }
 
 load_application <- function(filename) {
@@ -23,6 +24,8 @@ load_application <- function(filename) {
     setNames(names(.) %>% tolower()) %>%
     mutate(
       name_type_suite = fix_levels(name_type_suite),
+      name_income_type = fix_levels(name_income_type),
+      name_family_status = fix_levels(name_family_status),
       fondkapremont_mode = fix_levels(fondkapremont_mode)
     ) %>%
     mutate(
@@ -63,49 +66,49 @@ missing_to_zero <- function(values) {
 }
 
 data <- data %>% mutate(
-  amt_annuity = impute_median("amt_annuity"),
-  amt_goods_price = impute_median("amt_goods_price"),
-  cnt_fam_members = impute_median("cnt_fam_members"),
-  commonarea_medi = impute_median("commonarea_medi"),
-  commonarea_mode = impute_median("commonarea_mode"),
-  elevators_medi = impute_median("elevators_medi"),
-  elevators_mode = impute_median("elevators_mode"),
-  entrances_mode = impute_median("entrances_mode"),
-  entrances_medi = impute_median("entrances_medi"),
-  floorsmax_mode = impute_median("floorsmax_mode"),
-  floorsmax_medi = impute_median("floorsmax_medi"),
-  floorsmin_mode = impute_median("floorsmin_mode"),
-  floorsmin_medi = impute_median("floorsmin_medi"),
-  landarea_mode = impute_median("landarea_mode"),
-  landarea_medi = impute_median("landarea_medi"),
-  livingarea_mode = impute_median("livingarea_mode"),
-  livingarea_medi = impute_median("livingarea_medi"),
-  nonlivingarea_mode = impute_median("nonlivingarea_mode"),
-  nonlivingarea_medi = impute_median("nonlivingarea_medi"),
-  livingapartments_mode = impute_median("livingapartments_mode"),
-  livingapartments_medi = impute_median("livingapartments_medi"),
-  nonlivingapartments_mode = impute_median("nonlivingapartments_mode"),
-  nonlivingapartments_medi = impute_median("nonlivingapartments_medi"),
-  obs_30_cnt_social_circle = impute_median("obs_30_cnt_social_circle"),
-  def_30_cnt_social_circle = impute_median("def_30_cnt_social_circle"),
-  obs_60_cnt_social_circle = impute_median("obs_60_cnt_social_circle"),
-  def_60_cnt_social_circle = impute_median("def_60_cnt_social_circle"),
-  amt_req_credit_bureau_hour = impute_median("amt_req_credit_bureau_hour"),
-  amt_req_credit_bureau_day = impute_median("amt_req_credit_bureau_day"),
-  amt_req_credit_bureau_week = impute_median("amt_req_credit_bureau_week"),
-  amt_req_credit_bureau_mon = impute_median("amt_req_credit_bureau_mon"),
-  amt_req_credit_bureau_qrt = impute_median("amt_req_credit_bureau_qrt"),
-  amt_req_credit_bureau_year = impute_median("amt_req_credit_bureau_year"),
-  apartments_mode = impute_median("apartments_mode"),
-  apartments_medi = impute_median("apartments_medi"),
-  basementarea_mode = impute_median("basementarea_mode"),
-  basementarea_medi = impute_median("basementarea_medi"),
-  totalarea_mode = impute_median("totalarea_mode"),
-  years_beginexpluatation_mode = impute_median("years_beginexpluatation_mode"),
-  years_beginexpluatation_medi = impute_median("years_beginexpluatation_medi"),
-  years_build_mode = impute_median("years_build_mode"),
-  years_build_medi = impute_median("years_build_medi"),
-  days_last_phone_change = impute_median("days_last_phone_change"),
+  # amt_annuity = impute_median("amt_annuity"),
+  # amt_goods_price = impute_median("amt_goods_price"),
+  # cnt_fam_members = impute_median("cnt_fam_members"),
+  # commonarea_medi = impute_median("commonarea_medi"),
+  # commonarea_mode = impute_median("commonarea_mode"),
+  # elevators_medi = impute_median("elevators_medi"),
+  # elevators_mode = impute_median("elevators_mode"),
+  # entrances_mode = impute_median("entrances_mode"),
+  # entrances_medi = impute_median("entrances_medi"),
+  # floorsmax_mode = impute_median("floorsmax_mode"),
+  # floorsmax_medi = impute_median("floorsmax_medi"),
+  # floorsmin_mode = impute_median("floorsmin_mode"),
+  # floorsmin_medi = impute_median("floorsmin_medi"),
+  # landarea_mode = impute_median("landarea_mode"),
+  # landarea_medi = impute_median("landarea_medi"),
+  # livingarea_mode = impute_median("livingarea_mode"),
+  # livingarea_medi = impute_median("livingarea_medi"),
+  # nonlivingarea_mode = impute_median("nonlivingarea_mode"),
+  # nonlivingarea_medi = impute_median("nonlivingarea_medi"),
+  # livingapartments_mode = impute_median("livingapartments_mode"),
+  # livingapartments_medi = impute_median("livingapartments_medi"),
+  # nonlivingapartments_mode = impute_median("nonlivingapartments_mode"),
+  # nonlivingapartments_medi = impute_median("nonlivingapartments_medi"),
+  # obs_30_cnt_social_circle = impute_median("obs_30_cnt_social_circle"),
+  # def_30_cnt_social_circle = impute_median("def_30_cnt_social_circle"),
+  # obs_60_cnt_social_circle = impute_median("obs_60_cnt_social_circle"),
+  # def_60_cnt_social_circle = impute_median("def_60_cnt_social_circle"),
+  # amt_req_credit_bureau_hour = impute_median("amt_req_credit_bureau_hour"),
+  # amt_req_credit_bureau_day = impute_median("amt_req_credit_bureau_day"),
+  # amt_req_credit_bureau_week = impute_median("amt_req_credit_bureau_week"),
+  # amt_req_credit_bureau_mon = impute_median("amt_req_credit_bureau_mon"),
+  # amt_req_credit_bureau_qrt = impute_median("amt_req_credit_bureau_qrt"),
+  # amt_req_credit_bureau_year = impute_median("amt_req_credit_bureau_year"),
+  # apartments_mode = impute_median("apartments_mode"),
+  # apartments_medi = impute_median("apartments_medi"),
+  # basementarea_mode = impute_median("basementarea_mode"),
+  # basementarea_medi = impute_median("basementarea_medi"),
+  # totalarea_mode = impute_median("totalarea_mode"),
+  # years_beginexpluatation_mode = impute_median("years_beginexpluatation_mode"),
+  # years_beginexpluatation_medi = impute_median("years_beginexpluatation_medi"),
+  # years_build_mode = impute_median("years_build_mode"),
+  # years_build_medi = impute_median("years_build_medi"),
+  # days_last_phone_change = impute_median("days_last_phone_change"),
   #
   # TODO: These might better be replaced with mean/median.
   #
@@ -113,6 +116,19 @@ data <- data %>% mutate(
   ext_source_1 = missing_to_zero(ext_source_1),
   ext_source_2 = missing_to_zero(ext_source_2),
   ext_source_3 = missing_to_zero(ext_source_3)
+)
+
+# FACTORS -------------------------------------------------------------------------------------------------------------
+
+data <- data %>% mutate(
+  # The rare levels in the original factor are a problem with cross-validation.
+  name_income_type = name_income_type %>% fct_collapse(
+    working = c("working", "businessman"),
+    unemployed = c("unemployed", "student", "maternity_leave")
+    ),
+  name_family_status = name_family_status %>% fct_collapse(
+    married = c("married", "unknown")
+  )
 )
 
 # ENGINEER ------------------------------------------------------------------------------------------------------------
@@ -127,6 +143,31 @@ data <- data %>%
 
 # REBALANCE -----------------------------------------------------------------------------------------------------------
 
+# SELECT FEATURES -----------------------------------------------------------------------------------------------------
+
+EXCLUDE <- c(
+  "sk_id_curr",
+  "flag_emp_phone",
+  "amt_credit",
+  "region_rating_client_w_city",
+  "elevators_avg",
+  "commonarea_avg",
+  "entrances_avg",
+  "floorsmax_avg",
+  "floorsmin_avg",
+  "landarea_avg",
+  "livingarea_avg",
+  "nonlivingarea_avg",
+  "livingapartments_avg",
+  "nonlivingapartments_avg",
+  "basementarea_avg",
+  "apartments_avg",
+  "years_beginexpluatation_avg",
+  "years_build_avg"
+)
+
+data <- data %>% select(-one_of(EXCLUDE))
+
 # SPLIT ---------------------------------------------------------------------------------------------------------------
 
 # Split according to train/test and remove index column.
@@ -137,3 +178,24 @@ data_test <- data$test
 data_train <- data$train
 #
 rm(data)
+
+# IDENTIFY COLUMNS TO REMOVE ------------------------------------------------------------------------------------------
+
+# nearZeroVar(train)
+#
+# train_numeric = train[, sapply(train, class) != "factor"]
+# #
+# index_correlated = findCorrelation(cor(train_numeric), cutoff = 0.975)
+# index_linear = findLinearCombos(train_numeric)
+# #
+# names(train_numeric)[index_correlated]
+# index_linear
+# #
+# rm(train_numeric)
+
+# DOWNSAMPLE ----------------------------------------------------------------------------------------------------------
+
+data_train <- rbind(
+  data_train %>% filter(target == "yes") %>% sample_n(15000),
+  data_train %>% filter(target == "no") %>% sample_n(15000)
+)
