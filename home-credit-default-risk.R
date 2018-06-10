@@ -7,6 +7,18 @@
 # •credit_card_balance: monthly data about previous credit cards clients have had with Home Credit. Each row is one month of a credit card balance, and a single credit card can have many rows.
 # •installments_payment: payment history for previous loans at Home Credit. There is one row for every made payment and one row for every missed payment.
 
+# =====================================================================================================================
+# = Kaggle: Home Credit Default Risk                                                                                  =
+# =                                                                                                                   =
+# = Author: Andrew B. Collier <andrew@exegetic.biz> | @datawookie                                                     =
+# =====================================================================================================================
+
+# CONFIGURATION -------------------------------------------------------------------------------------------------------
+
+set.seed(13)
+
+# LIBRARIES -----------------------------------------------------------------------------------------------------------
+
 library(dplyr)
 library(stringr)
 library(forcats)
@@ -146,7 +158,6 @@ data <- data %>%
 # SELECT FEATURES -----------------------------------------------------------------------------------------------------
 
 EXCLUDE <- c(
-  "sk_id_curr",
   "flag_emp_phone",
   "amt_credit",
   "region_rating_client_w_city",
@@ -175,7 +186,7 @@ data <- data %>% select(-one_of(EXCLUDE))
 data <- split(data, data$set) %>% lapply(function(df) df %>% select(-set))
 #
 data_test <- data$test
-data_train <- data$train
+data_train <- data$train %>% select(-sk_id_curr)
 #
 rm(data)
 
@@ -200,7 +211,7 @@ data_train <- rbind(
   data_train %>% filter(target == "no") %>% sample_n(15000)
 )
 
-# TRAIN ---------------------------------------------------------------------------------------------------------------
+# MODEL METHOD --------------------------------------------------------------------------------------------------------
 
 # Attempted methods:
 #
@@ -209,10 +220,26 @@ data_train <- rbind(
 # - svmRadial
 # - xgbTree
 #
-METHOD = "glm"
+METHOD = Sys.getenv("METHOD", "glm")
 
-fit <- train(x = data_train %>% select(-target),
-             y = data_train %>% pull(target),
+# CREATE MATRICES -----------------------------------------------------------------------------------------------------
+
+X_train = data_train %>% select(-target)
+y_train = data_train %>% pull(target)
+#
+X_test  = data_test %>% select(-target, -sk_id_curr)
+
+# Convert factors to dummy variables.
+#
+if (METHOD == "xgbTree") {
+  X_train = predict(dummyVars(~ ., data = X_train), X_train)
+  X_test  = predict(dummyVars(~ ., data = X_test), X_test)
+}
+
+# TRAIN ---------------------------------------------------------------------------------------------------------------
+
+fit <- train(x = X_train,
+             y = y_train,
              method = METHOD,
              preProcess = "medianImpute",
              metric = "ROC",
@@ -223,3 +250,24 @@ fit <- train(x = data_train %>% select(-target),
                summaryFunction = twoClassSummary,
                verboseIter = TRUE
              ))
+
+# SUBMISSION ----------------------------------------------------------------------------------------------------------
+
+TIME <- format(Sys.time(), "%Y%m%d-%H%M%S")
+
+sink(sprintf("%s.txt", TIME))
+print(fit)
+cat("\n")
+fit$results %>% arrange(desc(ROC))
+sink()
+
+saveRDS(fit, file = sprintf("%s.rds", TIME))
+
+submission = cbind(SK_ID_CURR = data_test$sk_id_curr, TARGET = predict(fit, X_test, type = "prob")[,2]) %>%
+  data.frame() %>%
+  #
+  # This is necessary to ensure that output not converted to scientific notation.
+  #
+  mutate(SK_ID_CURR = as.integer(SK_ID_CURR))
+
+write.csv(submission, sprintf("%s.csv", TIME), quote = FALSE, row.names = FALSE)
