@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for model in glm rpart xgbTree svmRadial
+for model in glm rpart svmRadial xgbTree
 do
-  METHOD=$model bash -c "cat home-credit-default-risk.R | R --slave >log-${model}.txt"
+  DEBUG=FALSE METHOD=$model bash -c "cat home-credit-default-risk.R | R --slave >log-${model}.txt" &
 done

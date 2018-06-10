@@ -17,7 +17,7 @@
 
 set.seed(13)
 #
-DEBUG = Sys.getenv("DEBUG", FALSE) %>% as.logical()
+DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
