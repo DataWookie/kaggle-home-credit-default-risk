@@ -13,6 +13,18 @@
 # = Author: Andrew B. Collier <andrew@exegetic.biz> | @datawookie                                                     =
 # =====================================================================================================================
 
+# TODO: TRY AGGREGATING days_employed
+
+# TODO: LOOK AT amt_req_credit_bureau_hour
+# TODO: LOOK AT amt_req_credit_bureau_day
+# TODO: LOOK AT amt_req_credit_bureau_week
+
+# TODO: CONVERT NA TO CATEGORY FOR CATEGORICAL VARIABLES.
+
+
+
+
+
 # CONFIGURATION -------------------------------------------------------------------------------------------------------
 
 set.seed(13)
@@ -26,9 +38,6 @@ library(stringr)
 library(forcats)
 library(caret)
 
-# TODO: CONVERT NA TO CATEGORY FOR CATEGORICAL VARIABLES.
-#
-#
 fix_levels <- function(categorical) {
   categorical %>% str_replace_all("[:/]", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
 }
@@ -113,6 +122,13 @@ data <- data %>%
 
 EXCLUDE <- c(
   "flag_emp_phone",
+  "flag_mobil",
+  "flag_document_2",
+  "flag_document_4",
+  "flag_document_10",
+  "flag_document_12",
+  "flag_document_17",
+  "flag_document_21",
   "amt_credit",
   "region_rating_client_w_city",
   "elevators_avg",
@@ -133,20 +149,9 @@ EXCLUDE <- c(
 
 data <- data %>% select(-one_of(EXCLUDE))
 
-# SPLIT ---------------------------------------------------------------------------------------------------------------
-
-# Split according to train/test and remove index column.
-#
-data <- split(data, data$set) %>% lapply(function(df) df %>% select(-set))
-#
-data_test <- data$test
-data_train <- data$train %>% select(-sk_id_curr)
-#
-rm(data)
-
 # IDENTIFY COLUMNS TO REMOVE ------------------------------------------------------------------------------------------
 
-# nearZeroVar(train)
+# nearZeroVar(data_train)
 #
 # train_numeric = train[, sapply(train, class) != "factor"]
 # #
@@ -157,6 +162,17 @@ rm(data)
 # index_linear
 # #
 # rm(train_numeric)
+
+# SPLIT ---------------------------------------------------------------------------------------------------------------
+
+# Split according to train/test and remove index column.
+#
+data <- split(data, data$set) %>% lapply(function(df) df %>% select(-set))
+#
+data_test <- data$test
+data_train <- data$train %>% select(-sk_id_curr)
+#
+rm(data)
 
 # DOWNSAMPLE ----------------------------------------------------------------------------------------------------------
 
@@ -207,18 +223,18 @@ fit <- train(x = X_train,
                verboseIter = TRUE
              ))
 
-fit <- train(x = X_train,
-             y = y_train,
-             method = "svmRadial",
-             preProcess = "medianImpute",
-             metric = "ROC",
-             trControl = trainControl(
-               method = "cv",
-               number = 10,
-               classProbs = TRUE,
-               summaryFunction = twoClassSummary,
-               verboseIter = TRUE
-             ))
+# fit <- train(x = X_train,
+#              y = y_train,
+#              method = "svmRadial",
+#              preProcess = "medianImpute",
+#              metric = "ROC",
+#              trControl = trainControl(
+#                method = "cv",
+#                number = 10,
+#                classProbs = TRUE,
+#                summaryFunction = twoClassSummary,
+#                verboseIter = TRUE
+#              ))
 
 # SUBMISSION ----------------------------------------------------------------------------------------------------------
 
