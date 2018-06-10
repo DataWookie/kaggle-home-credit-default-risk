@@ -16,6 +16,8 @@
 # CONFIGURATION -------------------------------------------------------------------------------------------------------
 
 set.seed(13)
+#
+DEBUG = Sys.getenv("DEBUG", FALSE) %>% as.logical()
 
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
@@ -28,7 +30,7 @@ library(caret)
 #
 #
 fix_levels <- function(categorical) {
-  categorical %>% str_replace_all("/", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
+  categorical %>% str_replace_all("[:/]", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
 }
 
 load_application <- function(filename) {
@@ -38,7 +40,8 @@ load_application <- function(filename) {
       name_type_suite = fix_levels(name_type_suite),
       name_income_type = fix_levels(name_income_type),
       name_family_status = fix_levels(name_family_status),
-      fondkapremont_mode = fix_levels(fondkapremont_mode)
+      fondkapremont_mode = fix_levels(fondkapremont_mode),
+      organization_type = fix_levels(organization_type)
     ) %>%
     mutate(
       flag_not_employed = ifelse(days_employed == 365243, 'Y', 'N') %>% factor(),
@@ -88,6 +91,9 @@ data <- data %>% mutate(
     ),
   name_family_status = name_family_status %>% fct_collapse(
     married = c("married", "unknown")
+  ),
+  organization_type = organization_type %>% fct_collapse(
+    industry_type_other = c("industry_type_8", "industry_type_13")
   )
 )
 
@@ -154,10 +160,12 @@ rm(data)
 
 # DOWNSAMPLE ----------------------------------------------------------------------------------------------------------
 
-data_train <- rbind(
-  data_train %>% filter(target == "yes") %>% sample_n(15000),
-  data_train %>% filter(target == "no") %>% sample_n(15000)
-)
+if (DEBUG) {
+  data_train <- rbind(
+    data_train %>% filter(target == "yes") %>% sample_n(15000),
+    data_train %>% filter(target == "no") %>% sample_n(15000)
+  )
+}
 
 # MODEL METHOD --------------------------------------------------------------------------------------------------------
 
@@ -179,7 +187,7 @@ X_test  = data_test %>% select(-target, -sk_id_curr)
 
 # Convert factors to dummy variables.
 #
-if (METHOD == "xgbTree") {
+if (METHOD %in% c("xgbTree", "svmRadial")) {
   X_train = predict(dummyVars(~ ., data = X_train), X_train)
   X_test  = predict(dummyVars(~ ., data = X_test), X_test)
 }
@@ -189,6 +197,19 @@ if (METHOD == "xgbTree") {
 fit <- train(x = X_train,
              y = y_train,
              method = METHOD,
+             preProcess = "medianImpute",
+             metric = "ROC",
+             trControl = trainControl(
+               method = "cv",
+               number = 10,
+               classProbs = TRUE,
+               summaryFunction = twoClassSummary,
+               verboseIter = TRUE
+             ))
+
+fit <- train(x = X_train,
+             y = y_train,
+             method = "svmRadial",
              preProcess = "medianImpute",
              metric = "ROC",
              trControl = trainControl(
