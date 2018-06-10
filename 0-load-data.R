@@ -199,3 +199,27 @@ data_train <- rbind(
   data_train %>% filter(target == "yes") %>% sample_n(15000),
   data_train %>% filter(target == "no") %>% sample_n(15000)
 )
+
+# TRAIN ---------------------------------------------------------------------------------------------------------------
+
+# Attempted methods:
+#
+# - glm
+# - rpart
+# - svmRadial
+# - xgbTree
+#
+METHOD = "glm"
+
+fit <- train(x = data_train %>% select(-target),
+             y = data_train %>% pull(target),
+             method = METHOD,
+             preProcess = "medianImpute",
+             metric = "ROC",
+             trControl = trainControl(
+               method = "cv",
+               number = 10,
+               classProbs = TRUE,
+               summaryFunction = twoClassSummary,
+               verboseIter = TRUE
+             ))
