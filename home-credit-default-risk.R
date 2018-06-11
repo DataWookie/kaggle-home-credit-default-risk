@@ -22,7 +22,14 @@
 # TODO: CONVERT NA TO CATEGORY FOR CATEGORICAL VARIABLES.
 
 
-
+# Python:
+#   
+# https://www.kaggle.com/mlisovyi/modular-good-fun-with-ligthgbm/code
+# https://www.kaggle.com/shep312/lightgbm-with-weighted-averages-dropout-783/code
+# 
+# R
+# 
+# https://www.kaggle.com/kailex/tidy-xgb-all-tables-0-782/code
 
 
 # CONFIGURATION -------------------------------------------------------------------------------------------------------
@@ -110,10 +117,12 @@ data <- data %>% mutate(
 
 data <- data %>%
   mutate(
-    days_employed_percent = days_employed / days_birth,
-    income_credit_percent = amt_income_total /amt_credit,
+    days_employed_ratio = days_employed / days_birth,
+    income_credit_ratio = amt_income_total /amt_credit,
     income_per_person = amt_income_total / cnt_fam_members,
-    annuity_income_percent = amt_annuity / amt_income_total
+    annuity_income_ratio = amt_annuity / amt_income_total,
+    loan_income_ratio = amt_credit / amt_income_total,
+    annuity_length = amt_credit / amt_annuity
   )
 
 # REBALANCE -----------------------------------------------------------------------------------------------------------
@@ -189,7 +198,8 @@ if (DEBUG) {
 #
 # - glm
 # - rpart
-# - svmRadial
+# [- svmRadial]
+# - gbm
 # - xgbTree
 #
 METHOD = Sys.getenv("METHOD", "glm")
@@ -208,6 +218,19 @@ if (METHOD %in% c("xgbTree", "svmRadial")) {
   X_test  = predict(dummyVars(~ ., data = X_test), X_test)
 }
 
+# PARAMETER GRID ------------------------------------------------------------------------------------------------------
+
+TUNEGRID = NULL
+#
+if (METHOD == "gbm") {
+  TUNEGRID = expand.grid(
+    interaction.depth = 1:6,
+    n.trees = c(50, 100, 150, 200, 250),
+    shrinkage = 0.1,
+    n.minobsinnode = 10
+  )
+}
+
 # TRAIN ---------------------------------------------------------------------------------------------------------------
 
 fit <- train(x = X_train,
@@ -215,6 +238,7 @@ fit <- train(x = X_train,
              method = METHOD,
              preProcess = "medianImpute",
              metric = "ROC",
+             tuneGrid = TUNEGRID,
              trControl = trainControl(
                method = "cv",
                number = 10,
@@ -222,19 +246,6 @@ fit <- train(x = X_train,
                summaryFunction = twoClassSummary,
                verboseIter = TRUE
              ))
-
-# fit <- train(x = X_train,
-#              y = y_train,
-#              method = "svmRadial",
-#              preProcess = "medianImpute",
-#              metric = "ROC",
-#              trControl = trainControl(
-#                method = "cv",
-#                number = 10,
-#                classProbs = TRUE,
-#                summaryFunction = twoClassSummary,
-#                verboseIter = TRUE
-#              ))
 
 # SUBMISSION ----------------------------------------------------------------------------------------------------------
 
