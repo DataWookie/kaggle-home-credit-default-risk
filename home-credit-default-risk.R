@@ -38,12 +38,21 @@ set.seed(13)
 #
 DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
+PARALLEL = TRUE
+
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
 library(dplyr)
 library(stringr)
 library(forcats)
 library(caret)
+
+if (PARALLEL) {
+  library(parallel)
+  library(doParallel)
+  cluster <- makePSOCKcluster(detectCores() - 1)
+  registerDoParallel(cluster)
+}
 
 fix_levels <- function(categorical) {
   categorical %>% str_replace_all("[:/]", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
@@ -246,6 +255,10 @@ fit <- train(x = X_train,
                summaryFunction = twoClassSummary,
                verboseIter = TRUE
              ))
+
+if (PARALLEL) {
+  stopCluster(cluster)
+}
 
 # SUBMISSION ----------------------------------------------------------------------------------------------------------
 
