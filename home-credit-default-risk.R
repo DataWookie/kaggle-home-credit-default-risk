@@ -211,7 +211,7 @@ if (DEBUG) {
 # - gbm
 # - xgbTree
 #
-METHOD = Sys.getenv("METHOD", "glm")
+METHOD = Sys.getenv("METHOD", "gbm")
 
 # CREATE MATRICES -----------------------------------------------------------------------------------------------------
 
