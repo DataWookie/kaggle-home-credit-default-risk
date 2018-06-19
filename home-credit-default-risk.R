@@ -21,6 +21,8 @@
 
 # TODO: CONVERT NA TO CATEGORY FOR CATEGORICAL VARIABLES.
 
+# TODO: THERE IS A CATEGORICAL VARIABLE WITH MASSIVE NUMBER OF LEVELS. FIX THIS!!
+
 
 # Python:
 #   
@@ -214,7 +216,7 @@ X_test  = data_test %>% select(-target, -sk_id_curr)
 
 # Convert factors to dummy variables.
 #
-if (METHOD %in% c("xgbTree", "svmRadial")) {
+if (METHOD %in% c("xgbTree", "svmRadial", "rf")) {
   X_train = predict(dummyVars(~ ., data = X_train), X_train)
   X_test  = predict(dummyVars(~ ., data = X_test), X_test)
 }
@@ -225,8 +227,8 @@ TUNEGRID = NULL
 #
 if (METHOD == "gbm") {
   TUNEGRID = expand.grid(
-    interaction.depth = 1:6,
-    n.trees = c(50, 100, 150, 200, 250),
+    interaction.depth = 2:6,
+    n.trees = c(100, 150, 200, 250, 300),
     shrinkage = 0.1,
     n.minobsinnode = 10
   )
@@ -277,3 +279,5 @@ submission = cbind(SK_ID_CURR = data_test$sk_id_curr, TARGET = predict(fit, X_te
   mutate(SK_ID_CURR = as.integer(SK_ID_CURR))
 
 write.csv(submission, sprintf("%s.csv", TIME), quote = FALSE, row.names = FALSE)
+
+fit$results %>% arrange(desc(ROC)) %>% head() %>% print()
