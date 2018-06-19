@@ -31,7 +31,6 @@
 # 
 # https://www.kaggle.com/kailex/tidy-xgb-all-tables-0-782/code
 
-
 # CONFIGURATION -------------------------------------------------------------------------------------------------------
 
 set.seed(13)
@@ -40,19 +39,24 @@ DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
 PARALLEL = TRUE
 
+# Attempted methods:
+#
+# - glm
+# - rpart
+# [- svmRadial]
+# - gbm
+# - xgbTree
+#
+METHOD = Sys.getenv("METHOD", "gbm")
+
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
 library(dplyr)
 library(stringr)
 library(forcats)
 library(caret)
-
-if (PARALLEL) {
-  library(parallel)
-  library(doParallel)
-  cluster <- makePSOCKcluster(detectCores() - 1)
-  registerDoParallel(cluster)
-}
+library(parallel)
+library(doParallel)
 
 fix_levels <- function(categorical) {
   categorical %>% str_replace_all("[:/]", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
@@ -196,22 +200,10 @@ rm(data)
 
 if (DEBUG) {
   data_train <- rbind(
-    data_train %>% filter(target == "yes") %>% sample_n(15000),
-    data_train %>% filter(target == "no") %>% sample_n(15000)
+    data_train %>% filter(target == "yes") %>% sample_n(20000),
+    data_train %>% filter(target == "no") %>% sample_n(20000)
   )
 }
-
-# MODEL METHOD --------------------------------------------------------------------------------------------------------
-
-# Attempted methods:
-#
-# - glm
-# - rpart
-# [- svmRadial]
-# - gbm
-# - xgbTree
-#
-METHOD = Sys.getenv("METHOD", "gbm")
 
 # CREATE MATRICES -----------------------------------------------------------------------------------------------------
 
@@ -241,6 +233,11 @@ if (METHOD == "gbm") {
 }
 
 # TRAIN ---------------------------------------------------------------------------------------------------------------
+
+if (PARALLEL) {
+  cluster <- makePSOCKcluster(detectCores() - 1)
+  registerDoParallel(cluster)
+}
 
 fit <- train(x = X_train,
              y = y_train,
