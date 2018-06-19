@@ -53,12 +53,12 @@ METHOD = Sys.getenv("METHOD", "gbm")
 
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
+library(parallel)
+library(doParallel)
 library(dplyr)
 library(stringr)
 library(forcats)
 library(caret)
-library(parallel)
-library(doParallel)
 
 fix_levels <- function(categorical) {
   categorical %>% str_replace_all("[:/]", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
