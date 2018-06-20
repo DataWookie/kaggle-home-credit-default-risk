@@ -1,8 +1,3 @@
-# There are 7 different sources of data:
-# •POS_CASH_BALANCE: monthly data about previous point of sale or cash loans clients have had with Home Credit. Each row is one month of a previous point of sale orcash loan, and a single previous loan can have many rows.
-# •credit_card_balance: monthly data about previous credit cards clients have had with Home Credit. Each row is one month of a credit card balance, and a single credit card can have many rows.
-# •installments_payment: payment history for previous loans at Home Credit. There is one row for every made payment and one row for every missed payment.
-
 # =====================================================================================================================
 # = Kaggle: Home Credit Default Risk                                                                                  =
 # =                                                                                                                   =
@@ -35,7 +30,7 @@ set.seed(13)
 #
 DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
-PARALLEL = FALSE
+PARALLEL = TRUE
 
 # Attempted methods:
 #
@@ -45,7 +40,7 @@ PARALLEL = FALSE
 # - gbm
 # - xgbTree
 #
-METHOD = Sys.getenv("METHOD", "glm")
+METHOD = Sys.getenv("METHOD", "gbm")
 
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
@@ -184,6 +179,57 @@ previous <- inner_join(
     spread(name_contract_status, n, fill = 0)
 )
 
+# POS -----------------------------------------------------------------------------------------------------------------
+
+# - Monthly data about previous point of sale or cash loans clients have had with Home Credit.
+# - Each row is one month of a previous point of sale orcash loan, and a single previous loan can have many rows.
+
+pos <- read.csv("data/POS_CASH_balance.csv") %>%
+  setNames(tolower(names(.)))
+
+pos <- pos %>%
+  group_by(sk_id_curr) %>%
+  summarise(
+    pos_cnt = length(sk_id_prev),
+    months_balance_max = max(months_balance),
+    months_balance_avg = mean(months_balance),
+    sk_dpd_max = max(sk_dpd),
+    sk_dpd_avg = mean(sk_dpd),
+    sk_dpd_def_max = max(sk_dpd_def),
+    sk_dpd_def_avg = mean(sk_dpd_def)
+  )
+
+# CREDIT CARD ---------------------------------------------------------------------------------------------------------
+
+# - Monthly data about previous credit cards clients have had with Home Credit.
+# - Each row is one month of a credit card balance, and a single credit card can have many rows.
+
+credit_card <- read.csv("data/credit_card_balance.csv") %>%
+  setNames(tolower(names(.)))
+
+# TODO: Can we use name_contract_status?
+# TODO: Can we use name_contract_status?
+# TODO: Can we use name_contract_status?
+
+credit_card <- credit_card %>%
+  select(-sk_id_prev) %>%
+  group_by(sk_id_curr) %>%
+  summarise_if(is.numeric, funs(
+    avg = mean(., na.rm = TRUE),
+    var = var(., na.rm = TRUE),
+    min = min(., na.rm = TRUE),
+    max = max(., na.rm = TRUE)
+    )) %>%
+  mutate_if(is.numeric, funs(ifelse(is.nan(.) | is.infinite(.), NA, .)))
+
+# INSTALLMENTS --------------------------------------------------------------------------------------------------------
+
+# - Payment history for previous loans at Home Credit.
+# - There is one row for every made payment and one row for every missed payment.
+
+installments <- read.csv("data/installments_payments.csv") %>%
+  setNames(tolower(names(.)))
+
 # ---------------------------------------------------------------------------------------------------------------------
 
 data_train <- load_application("data/application_train.csv") %>%
@@ -200,7 +246,9 @@ data <- rbind(data_train, data_test)
 #
 data <- data %>%
   left_join(bureau) %>%
-  left_join(previous)
+  left_join(previous) %>%
+  left_join(pos) %>%
+  left_join(credit_card)
 
 # OUTLIERS ------------------------------------------------------------------------------------------------------------
 
