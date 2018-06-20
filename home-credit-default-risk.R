@@ -1,8 +1,4 @@
 # There are 7 different sources of data:
-# •application_train/application_test: the main training and testing data with information about each loan application at Home Credit. Every loan has its own row and is identified by the featureSK_ID_CURR. The training application data comes with theTARGETindicating 0: the loan was repaid or 1: the loan was not repaid.
-# •bureau: data concerning client's previous credits from other financial institutions. Each previous credit has its own row in bureau, but one loan in the application data can have multiple previous credits.
-# •bureau_balance: monthly data about the previous credits in bureau. Each row is one month of a previous credit, and a single previous credit can have multiple rows, one for each month of the credit length.
-# •previous_application: previous applications for loans at Home Credit of clients who have loans in the application data. Each current loan in the application data can have multiple previous loans. Each previous application has one row and is identified by the featureSK_ID_PREV.
 # •POS_CASH_BALANCE: monthly data about previous point of sale or cash loans clients have had with Home Credit. Each row is one month of a previous point of sale orcash loan, and a single previous loan can have many rows.
 # •credit_card_balance: monthly data about previous credit cards clients have had with Home Credit. Each row is one month of a credit card balance, and a single credit card can have many rows.
 # •installments_payment: payment history for previous loans at Home Credit. There is one row for every made payment and one row for every missed payment.
@@ -39,7 +35,7 @@ set.seed(13)
 #
 DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
-PARALLEL = TRUE
+PARALLEL = FALSE
 
 # Attempted methods:
 #
@@ -49,16 +45,19 @@ PARALLEL = TRUE
 # - gbm
 # - xgbTree
 #
-METHOD = Sys.getenv("METHOD", "gbm")
+METHOD = Sys.getenv("METHOD", "glm")
 
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
 library(parallel)
 library(doParallel)
 library(dplyr)
+library(tidyr)
 library(stringr)
 library(forcats)
 library(caret)
+
+# BASE DATA -----------------------------------------------------------------------------------------------------------
 
 fix_levels <- function(categorical) {
   categorical %>% str_replace_all("[:/]", "") %>% str_replace_all(" +", "_") %>% ifelse(. == "", "none", .) %>% tolower() %>% factor()
@@ -80,6 +79,113 @@ load_application <- function(filename) {
     )
 }
 
+# BUREAU --------------------------------------------------------------------------------------------------------------
+
+# - Monthly data about the previous credits in bureau.
+# - Each row is one month of a previous credit, and a single previous credit can have multiple rows, one for each month of the credit length.
+#
+bureau_balance <- read.csv("data/bureau_balance.csv") %>%
+  setNames(tolower(names(.)))
+#
+bureau_balance <- inner_join(
+  bureau_balance %>%
+    group_by(sk_id_bureau) %>%
+    summarise(
+      months_balance_min = min(months_balance),
+      months_balance_max = max(months_balance),
+      months_balance_len = length(months_balance)
+    ),
+  bureau_balance %>%
+    mutate(status = paste("bureau_status", status, sep = "_")) %>%
+    group_by(sk_id_bureau, status) %>%
+    count() %>%
+    spread(status, n, fill = 0)
+) %>%
+  mutate_at(vars(matches("bureau_status_")), funs(. / months_balance_len))
+
+# - Data concerning client's previous credits from other financial institutions.
+# - Each previous credit has its own row in bureau, but one loan in the application data can have multiple previous credits.
+#
+bureau <- read.csv("data/bureau.csv") %>%
+  setNames(tolower(names(.)))
+
+bureau <- bureau %>% left_join(bureau_balance)
+
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
+#
+bureau <- bureau %>%
+  mutate(credit_active = paste("credit_active", credit_active, sep = "_") %>% str_replace_all(" ", "_")) %>%
+  group_by(sk_id_curr, credit_active) %>%
+  count() %>%
+  spread(credit_active, n, fill = 0)
+
+# PREVIOUS APPLICATIONS -----------------------------------------------------------------------------------------------
+
+# - Previous applications for loans at Home Credit of clients who have loans in the application data.
+# - Each current loan in the application data can have multiple previous loans.
+# - Each previous application has one row and is identified by the featureSK_ID_PREV.
+#
+previous <- read.csv("data/previous_application.csv") %>%
+  setNames(tolower(names(.)))
+
+# Substitute NA.
+#
+previous <- previous %>%
+  mutate_at(
+    vars(matches("days_")),
+    funs(ifelse(. == 365243, NA, .))
+  )
+
+# Engineer features.
+#
+previous <- previous %>% mutate(
+  app_credit_ratio = amt_application / amt_credit
+)
+
+# Columns for aggregation.
+# 
+# num_aggregations = {
+#   'AMT_ANNUITY': [ 'max', 'mean'],
+#   'AMT_APPLICATION': [ 'max','mean'],
+#   'AMT_CREDIT': [ 'max', 'mean'],
+#   'APP_CREDIT_PERC': [ 'max', 'mean'],
+#   'AMT_DOWN_PAYMENT': [ 'max', 'mean'],
+#   'AMT_GOODS_PRICE': [ 'max', 'mean'],
+#   'HOUR_APPR_PROCESS_START': [ 'max', 'mean'],
+#   'RATE_DOWN_PAYMENT': [ 'max', 'mean'],
+#   'DAYS_DECISION': [ 'max', 'mean'],
+#   'CNT_PAYMENT': ['mean', 'sum'],
+# }
+
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
+# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
+previous <- inner_join(
+  previous %>%
+    group_by(sk_id_curr) %>%
+    summarise(
+      app_credit_ratio_min = min(app_credit_ratio, na.rm = TRUE),
+      app_credit_ratio_max = max(app_credit_ratio, na.rm = TRUE),
+      app_credit_ratio_avg = mean(app_credit_ratio, na.rm = TRUE)
+    ) %>% mutate_at(
+      vars(matches("app_credit_ratio")),
+      funs(ifelse(is.infinite(.) | is.nan(.), NA, .))
+    ),
+  previous %>%
+    mutate(name_contract_status = paste("contract_status", name_contract_status, sep = "_") %>% str_replace_all(" ", "_")) %>%
+    group_by(sk_id_curr, name_contract_status) %>%
+    count() %>%
+    spread(name_contract_status, n, fill = 0)
+)
+
+# ---------------------------------------------------------------------------------------------------------------------
+
 data_train <- load_application("data/application_train.csv") %>%
   mutate(set = "train")
 data_test  <- load_application("data/application_test.csv") %>%
@@ -89,6 +195,12 @@ data_test  <- load_application("data/application_test.csv") %>%
 data_train$target = factor(data_train$target, labels = c("no", "yes"))
 
 data <- rbind(data_train, data_test)
+
+# Merge in other data.
+#
+data <- data %>%
+  left_join(bureau) %>%
+  left_join(previous)
 
 # OUTLIERS ------------------------------------------------------------------------------------------------------------
 
@@ -129,6 +241,24 @@ data <- data %>% mutate(
 )
 
 # ENGINEER ------------------------------------------------------------------------------------------------------------
+
+# df['NEW_CREDIT_TO_ANNUITY_RATIO'] = df['AMT_CREDIT'] / df['AMT_ANNUITY']
+# df['NEW_CREDIT_TO_GOODS_RATIO'] = df['AMT_CREDIT'] / df['AMT_GOODS_PRICE']
+# df['NEW_DOC_IND_KURT'] = df[docs].kurtosis(axis=1)
+# df['NEW_LIVE_IND_SUM'] = df[live].sum(axis=1)
+# df['NEW_INC_PER_CHLD'] = df['AMT_INCOME_TOTAL'] / (1 + df['CNT_CHILDREN'])
+# df['NEW_INC_BY_ORG'] = df['ORGANIZATION_TYPE'].map(inc_by_org)
+# df['NEW_EMPLOY_TO_BIRTH_RATIO'] = df['DAYS_EMPLOYED'] / df['DAYS_BIRTH']
+# df['NEW_ANNUITY_TO_INCOME_RATIO'] = df['AMT_ANNUITY'] / (1 + df['AMT_INCOME_TOTAL'])
+# df['NEW_SOURCES_PROD'] = df['EXT_SOURCE_1'] * df['EXT_SOURCE_2'] * df['EXT_SOURCE_3']
+# df['NEW_EXT_SOURCES_MEAN'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].mean(axis=1)
+# df['NEW_SCORES_STD'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].std(axis=1)
+# df['NEW_SCORES_STD'] = df['NEW_SCORES_STD'].fillna(df['NEW_SCORES_STD'].mean())
+# df['NEW_CAR_TO_BIRTH_RATIO'] = df['OWN_CAR_AGE'] / df['DAYS_BIRTH']
+# df['NEW_CAR_TO_EMPLOY_RATIO'] = df['OWN_CAR_AGE'] / df['DAYS_EMPLOYED']
+# df['NEW_PHONE_TO_BIRTH_RATIO'] = df['DAYS_LAST_PHONE_CHANGE'] / df['DAYS_BIRTH']
+# df['NEW_PHONE_TO_BIRTH_RATIO'] = df['DAYS_LAST_PHONE_CHANGE'] / df['DAYS_EMPLOYED']
+# df['NEW_CREDIT_TO_INCOME_RATIO'] = df['AMT_CREDIT'] / df['AMT_INCOME_TOTAL']
 
 data <- data %>%
   mutate(
