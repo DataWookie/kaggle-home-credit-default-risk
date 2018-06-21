@@ -30,7 +30,7 @@ set.seed(13)
 #
 DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
-PARALLEL = TRUE
+PARALLEL = FALSE
 
 # Attempted methods:
 #
@@ -190,14 +190,15 @@ pos <- read.csv("data/POS_CASH_balance.csv") %>%
 pos <- pos %>%
   group_by(sk_id_curr) %>%
   summarise(
-    pos_cnt = length(sk_id_prev),
+    cnt = length(sk_id_prev),
     months_balance_max = max(months_balance),
     months_balance_avg = mean(months_balance),
     sk_dpd_max = max(sk_dpd),
     sk_dpd_avg = mean(sk_dpd),
     sk_dpd_def_max = max(sk_dpd_def),
     sk_dpd_def_avg = mean(sk_dpd_def)
-  )
+  ) %>%
+  rename_at(vars(-matches("sk_id_curr")), funs(paste0("pos_", .)))
 
 # CREDIT CARD ---------------------------------------------------------------------------------------------------------
 
@@ -230,6 +231,22 @@ credit_card <- credit_card %>%
 installments <- read.csv("data/installments_payments.csv") %>%
   setNames(tolower(names(.)))
 
+installments <- installments %>% mutate(
+  payment_ratio = amt_payment / amt_instalment,
+  payment_ratio_inverse = amt_instalment / amt_payment,
+  days_past_due = (days_entry_payment - days_instalment) %>% ifelse(. > 0, ., 0),
+  days_before_due = (days_instalment - days_entry_payment) %>% ifelse(. > 0, ., 0)
+) %>%
+  select(-num_instalment_version) %>%
+  group_by(sk_id_curr) %>%
+  summarise_if(is.numeric, funs(
+    avg = mean(., na.rm = TRUE),
+    var = var(., na.rm = TRUE),
+    min = min(., na.rm = TRUE),
+    max = max(., na.rm = TRUE)
+  )) %>%
+  mutate_if(is.numeric, funs(ifelse(is.nan(.) | is.infinite(.), NA, .)))
+
 # ---------------------------------------------------------------------------------------------------------------------
 
 data_train <- load_application("data/application_train.csv") %>%
@@ -248,7 +265,8 @@ data <- data %>%
   left_join(bureau) %>%
   left_join(previous) %>%
   left_join(pos) %>%
-  left_join(credit_card)
+  left_join(credit_card) %>%
+  left_join(installments)
 
 # OUTLIERS ------------------------------------------------------------------------------------------------------------
 
