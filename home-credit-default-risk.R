@@ -30,7 +30,7 @@ set.seed(13)
 #
 DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
-PARALLEL = FALSE
+PARALLEL = TRUE
 
 # Attempted methods:
 #
@@ -40,7 +40,7 @@ PARALLEL = FALSE
 # - gbm
 # - xgbTree
 #
-METHOD = Sys.getenv("METHOD", "gbm")
+METHOD = Sys.getenv("METHOD", "xgbTree")
 
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
@@ -88,7 +88,7 @@ bureau_balance <- inner_join(
     summarise(
       months_balance_min = min(months_balance),
       months_balance_max = max(months_balance),
-      months_balance_len = length(months_balance)
+      months_balance_cnt = length(months_balance)
     ),
   bureau_balance %>%
     mutate(status = paste("bureau_status", status, sep = "_")) %>%
@@ -96,7 +96,7 @@ bureau_balance <- inner_join(
     count() %>%
     spread(status, n, fill = 0)
 ) %>%
-  mutate_at(vars(matches("bureau_status_")), funs(. / months_balance_len))
+  mutate_at(vars(matches("bureau_status_")), funs(. / months_balance_cnt))
 
 # - Data concerning client's previous credits from other financial institutions.
 # - Each previous credit has its own row in bureau, but one loan in the application data can have multiple previous credits.
@@ -106,16 +106,37 @@ bureau <- read.csv("data/bureau.csv") %>%
 
 bureau <- bureau %>% left_join(bureau_balance)
 
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!! Look at all other features in bureau.
-#
-bureau <- bureau %>%
+bureau_1 <- bureau %>%
   mutate(credit_active = paste("credit_active", credit_active, sep = "_") %>% str_replace_all(" ", "_")) %>%
   group_by(sk_id_curr, credit_active) %>%
   count() %>%
   spread(credit_active, n, fill = 0)
+
+bureau_2 <- bureau %>%
+  select(-sk_id_bureau) %>%
+  group_by(sk_id_curr) %>%
+  summarise_at(c("days_credit", "credit_day_overdue", "days_credit_enddate", "days_credit_update", "amt_credit_max_overdue", "amt_credit_sum_overdue",
+                 "amt_credit_sum", "amt_credit_sum_debt", "amt_credit_sum_limit", "amt_annuity", "months_balance_cnt"), funs(
+                   avg = mean(., na.rm = TRUE),
+                   var = var(., na.rm = TRUE)
+                 ))
+
+bureau_3 <- bureau %>%
+  select(-sk_id_bureau) %>%
+  group_by(sk_id_curr) %>%
+  summarise_at(c("months_balance_min", "months_balance_max"), funs(
+    min = min(., na.rm = TRUE),
+    max = max(., na.rm = TRUE)
+  ))
+
+bureau <- bureau_1 %>%
+  inner_join(bureau_2) %>%
+  inner_join(bureau_3) %>%
+  mutate_if(is.numeric, funs(ifelse(is.nan(.) | is.infinite(.), NA, .))) %>%
+  ungroup() %>%
+  rename_at(vars(-matches("sk_id_curr")), funs(paste0("bureau_", .)))
+
+rm(bureau_1, bureau_2, bureau_3)
 
 # PREVIOUS APPLICATIONS -----------------------------------------------------------------------------------------------
 
@@ -182,7 +203,7 @@ previous <- inner_join(
 # POS -----------------------------------------------------------------------------------------------------------------
 
 # - Monthly data about previous point of sale or cash loans clients have had with Home Credit.
-# - Each row is one month of a previous point of sale orcash loan, and a single previous loan can have many rows.
+# - Each row is one month of a previous point of sale or cash loan, and a single previous loan can have many rows.
 
 pos <- read.csv("data/POS_CASH_balance.csv") %>%
   setNames(tolower(names(.)))
