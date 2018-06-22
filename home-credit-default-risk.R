@@ -30,7 +30,7 @@ set.seed(13)
 #
 DEBUG = as.logical(Sys.getenv("DEBUG", TRUE))
 
-PARALLEL = TRUE
+PARALLEL = FALSE
 
 # Attempted methods:
 #
@@ -40,7 +40,7 @@ PARALLEL = TRUE
 # - gbm
 # - xgbTree
 #
-METHOD = Sys.getenv("METHOD", "xgbTree")
+METHOD = Sys.getenv("METHOD", "gbm")
 
 # LIBRARIES -----------------------------------------------------------------------------------------------------------
 
