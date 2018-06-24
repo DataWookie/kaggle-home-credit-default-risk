@@ -6,3 +6,4 @@ data/
 *.txt
 *.csv
 *.rds
+.ipynb_checkpoints
