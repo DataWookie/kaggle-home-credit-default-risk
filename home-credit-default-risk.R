@@ -50,6 +50,7 @@ library(dplyr)
 library(tidyr)
 library(stringr)
 library(forcats)
+library(gbm)
 library(caret)
 
 # BASE DATA -----------------------------------------------------------------------------------------------------------
@@ -161,38 +162,17 @@ previous <- previous %>% mutate(
   app_credit_ratio = amt_application / amt_credit
 )
 
-# Columns for aggregation.
-# 
-# num_aggregations = {
-#   'AMT_ANNUITY': [ 'max', 'mean'],
-#   'AMT_APPLICATION': [ 'max','mean'],
-#   'AMT_CREDIT': [ 'max', 'mean'],
-#   'APP_CREDIT_PERC': [ 'max', 'mean'],
-#   'AMT_DOWN_PAYMENT': [ 'max', 'mean'],
-#   'AMT_GOODS_PRICE': [ 'max', 'mean'],
-#   'HOUR_APPR_PROCESS_START': [ 'max', 'mean'],
-#   'RATE_DOWN_PAYMENT': [ 'max', 'mean'],
-#   'DAYS_DECISION': [ 'max', 'mean'],
-#   'CNT_PAYMENT': ['mean', 'sum'],
-# }
-
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
-# TODO: MUCH MORE SCOPE FOR AGGREGATION HERE!!
 previous <- inner_join(
   previous %>%
     group_by(sk_id_curr) %>%
-    summarise(
-      app_credit_ratio_min = min(app_credit_ratio, na.rm = TRUE),
-      app_credit_ratio_max = max(app_credit_ratio, na.rm = TRUE),
-      app_credit_ratio_avg = mean(app_credit_ratio, na.rm = TRUE)
-    ) %>% mutate_at(
-      vars(matches("app_credit_ratio")),
-      funs(ifelse(is.infinite(.) | is.nan(.), NA, .))
-    ),
+    summarise_if(is.numeric, funs(
+      avg = mean(., na.rm = TRUE),
+      var = var(., na.rm = TRUE),
+      min = min(., na.rm = TRUE),
+      max = max(., na.rm = TRUE),
+      sum = sum(., na.rm = TRUE)
+    )) %>%
+    mutate_if(is.numeric, funs(ifelse(is.nan(.) | is.infinite(.), NA, .))),
   previous %>%
     mutate(name_contract_status = paste("contract_status", name_contract_status, sep = "_") %>% str_replace_all(" ", "_")) %>%
     group_by(sk_id_curr, name_contract_status) %>%
@@ -329,24 +309,6 @@ data <- data %>% mutate(
 
 # ENGINEER ------------------------------------------------------------------------------------------------------------
 
-# df['NEW_CREDIT_TO_ANNUITY_RATIO'] = df['AMT_CREDIT'] / df['AMT_ANNUITY']
-# df['NEW_CREDIT_TO_GOODS_RATIO'] = df['AMT_CREDIT'] / df['AMT_GOODS_PRICE']
-# df['NEW_DOC_IND_KURT'] = df[docs].kurtosis(axis=1)
-# df['NEW_LIVE_IND_SUM'] = df[live].sum(axis=1)
-# df['NEW_INC_PER_CHLD'] = df['AMT_INCOME_TOTAL'] / (1 + df['CNT_CHILDREN'])
-# df['NEW_INC_BY_ORG'] = df['ORGANIZATION_TYPE'].map(inc_by_org)
-# df['NEW_EMPLOY_TO_BIRTH_RATIO'] = df['DAYS_EMPLOYED'] / df['DAYS_BIRTH']
-# df['NEW_ANNUITY_TO_INCOME_RATIO'] = df['AMT_ANNUITY'] / (1 + df['AMT_INCOME_TOTAL'])
-# df['NEW_SOURCES_PROD'] = df['EXT_SOURCE_1'] * df['EXT_SOURCE_2'] * df['EXT_SOURCE_3']
-# df['NEW_EXT_SOURCES_MEAN'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].mean(axis=1)
-# df['NEW_SCORES_STD'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].std(axis=1)
-# df['NEW_SCORES_STD'] = df['NEW_SCORES_STD'].fillna(df['NEW_SCORES_STD'].mean())
-# df['NEW_CAR_TO_BIRTH_RATIO'] = df['OWN_CAR_AGE'] / df['DAYS_BIRTH']
-# df['NEW_CAR_TO_EMPLOY_RATIO'] = df['OWN_CAR_AGE'] / df['DAYS_EMPLOYED']
-# df['NEW_PHONE_TO_BIRTH_RATIO'] = df['DAYS_LAST_PHONE_CHANGE'] / df['DAYS_BIRTH']
-# df['NEW_PHONE_TO_BIRTH_RATIO'] = df['DAYS_LAST_PHONE_CHANGE'] / df['DAYS_EMPLOYED']
-# df['NEW_CREDIT_TO_INCOME_RATIO'] = df['AMT_CREDIT'] / df['AMT_INCOME_TOTAL']
-
 data <- data %>%
   mutate(
     days_employed_ratio = days_employed / days_birth,
@@ -354,7 +316,10 @@ data <- data %>%
     income_per_person = amt_income_total / cnt_fam_members,
     annuity_income_ratio = amt_annuity / amt_income_total,
     loan_income_ratio = amt_credit / amt_income_total,
-    annuity_length = amt_credit / amt_annuity
+    loan_goods_ratio = amt_credit / amt_goods_price,
+    credit_annuity_ratio = amt_credit / amt_annuity,
+    ext_sources_sum = ext_source_1 + ext_source_2 + ext_source_3,
+    ext_sources_prod = ext_source_1 * ext_source_2 * ext_source_3
   )
 
 # REBALANCE -----------------------------------------------------------------------------------------------------------
@@ -411,7 +376,7 @@ data <- data %>% select(-one_of(EXCLUDE))
 data <- split(data, data$set) %>% lapply(function(df) df %>% select(-set))
 #
 data_test <- data$test
-data_train <- data$train %>% select(-sk_id_curr)
+data_train <- data$train
 #
 rm(data)
 
@@ -426,7 +391,7 @@ if (DEBUG) {
 
 # CREATE MATRICES -----------------------------------------------------------------------------------------------------
 
-X_train = data_train %>% select(-target)
+X_train = data_train %>% select(-target, -sk_id_curr)
 y_train = data_train %>% pull(target)
 #
 X_test  = data_test %>% select(-target, -sk_id_curr)
@@ -498,3 +463,5 @@ submission = cbind(SK_ID_CURR = data_test$sk_id_curr, TARGET = predict(fit, X_te
 write.csv(submission, sprintf("%s.csv", TIME), quote = FALSE, row.names = FALSE)
 
 fit$results %>% arrange(desc(ROC)) %>% head() %>% print()
+
+varImp(fit)
